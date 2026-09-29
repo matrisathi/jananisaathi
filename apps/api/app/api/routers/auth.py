@@ -61,13 +61,13 @@ def _set_session_cookies(response: Response, access_token: str, refresh_token: s
         max_age=settings.refresh_token_ttl_days * 24 * 3600,
         # Scoped to the refresh/logout endpoints only, limiting exposure of
         # this longer-lived credential to the rest of the API surface.
-        path="/auth",
+        path="/api/v1/auth",
     )
 
 
 def _clear_session_cookies(response: Response) -> None:
     response.delete_cookie("access_token", path="/", domain=settings.cookie_domain)
-    response.delete_cookie("refresh_token", path="/auth", domain=settings.cookie_domain)
+    response.delete_cookie("refresh_token", path="/api/v1/auth", domain=settings.cookie_domain)
 
 
 def _recent_failed_attempts(db: Session, username: str) -> int:

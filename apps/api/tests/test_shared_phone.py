@@ -5,7 +5,7 @@ SHARED_PHONE = "+919999999999"
 
 
 def _login(client, username, password="synthetic-password-123"):
-    resp = client.post("/auth/login", json={"username": username, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
     assert resp.status_code == 200
 
 
@@ -17,13 +17,13 @@ def test_two_people_can_share_a_phone_without_being_merged(client, db_session):
 
     _login(client, "staff_shared")
     person_1 = client.post(
-        "/people",
+        "/api/v1/people",
         json={"full_name": "Household Member One", "facility_id": str(facility.id), "phone": SHARED_PHONE},
         headers=CSRF_HEADERS,
     )
     assert person_1.status_code == 201
     person_2 = client.post(
-        "/people",
+        "/api/v1/people",
         json={"full_name": "Household Member Two", "facility_id": str(facility.id), "phone": SHARED_PHONE},
         headers=CSRF_HEADERS,
     )
@@ -32,16 +32,16 @@ def test_two_people_can_share_a_phone_without_being_merged(client, db_session):
     p1, p2 = person_1.json(), person_2.json()
     assert p1["id"] != p2["id"]
 
-    episode_1 = client.post("/pregnancy-episodes", json={"person_id": p1["id"]}, headers=CSRF_HEADERS)
-    episode_2 = client.post("/pregnancy-episodes", json={"person_id": p2["id"]}, headers=CSRF_HEADERS)
+    episode_1 = client.post("/api/v1/pregnancy-episodes", json={"person_id": p1["id"]}, headers=CSRF_HEADERS)
+    episode_2 = client.post("/api/v1/pregnancy-episodes", json={"person_id": p2["id"]}, headers=CSRF_HEADERS)
     assert episode_1.status_code == 201
     assert episode_2.status_code == 201
     assert episode_1.json()["id"] != episode_2.json()["id"]
 
     # Each is independently readable, and reading one never surfaces the
     # other sharing its phone number.
-    read_1 = client.get(f"/people/{p1['id']}").json()
-    read_2 = client.get(f"/people/{p2['id']}").json()
+    read_1 = client.get(f"/api/v1/people/{p1['id']}").json()
+    read_2 = client.get(f"/api/v1/people/{p2['id']}").json()
     assert read_1["full_name"] == "Household Member One"
     assert read_2["full_name"] == "Household Member Two"
     assert read_1["id"] != read_2["id"]
@@ -59,23 +59,23 @@ def test_shared_phone_does_not_leak_across_organizations(client, db_session):
 
     _login(client, "phone_staff_1")
     person_1 = client.post(
-        "/people",
+        "/api/v1/people",
         json={"full_name": "Org 1 Mother", "facility_id": str(facility_1.id), "phone": SHARED_PHONE},
         headers=CSRF_HEADERS,
     ).json()
-    client.post("/auth/logout", headers=CSRF_HEADERS)
+    client.post("/api/v1/auth/logout", headers=CSRF_HEADERS)
 
     _login(client, "phone_staff_2")
     person_2 = client.post(
-        "/people",
+        "/api/v1/people",
         json={"full_name": "Org 2 Mother", "facility_id": str(facility_2.id), "phone": SHARED_PHONE},
         headers=CSRF_HEADERS,
     ).json()
 
     # staff_2 (currently logged in) cannot read org 1's person, even though
     # it shares the exact phone number they just used themselves.
-    resp = client.get(f"/people/{person_1['id']}")
+    resp = client.get(f"/api/v1/people/{person_1['id']}")
     assert resp.status_code == 404
     # Their own read never mentions or exposes the other org's record.
-    own = client.get(f"/people/{person_2['id']}").json()
+    own = client.get(f"/api/v1/people/{person_2['id']}").json()
     assert "org 1" not in str(own).lower()

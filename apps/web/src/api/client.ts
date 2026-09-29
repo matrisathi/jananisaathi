@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8000/api/v1";
 
 // The auth session rides on httpOnly cookies (set by the API), never in
 // localStorage or a JS-readable cookie — this frontend never touches the

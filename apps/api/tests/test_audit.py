@@ -10,7 +10,7 @@ from tests.factories import make_facility, make_membership, make_org, make_staff
 
 
 def _login(client, username, password="synthetic-password-123"):
-    resp = client.post("/auth/login", json={"username": username, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"username": username, "password": password})
     assert resp.status_code == 200
 
 
@@ -22,11 +22,11 @@ def test_create_and_read_each_produce_one_audit_row(client, db_session):
 
     _login(client, "audit_staff")
     person = client.post(
-        "/people",
+        "/api/v1/people",
         json={"full_name": "Audited Mother", "facility_id": str(facility.id), "phone": "+913333333331"},
         headers=CSRF_HEADERS,
     ).json()
-    client.get(f"/people/{person['id']}")
+    client.get(f"/api/v1/people/{person['id']}")
 
     rows = db_session.query(AuditEvent).filter(AuditEvent.entity_id == person["id"]).all()
     actions = sorted((r.action, r.outcome) for r in rows)
@@ -44,14 +44,14 @@ def test_denied_access_writes_a_denied_audit_row(client, db_session):
 
     _login(client, "audit_a")
     person = client.post(
-        "/people",
+        "/api/v1/people",
         json={"full_name": "Audited Mother B", "facility_id": str(facility_a.id), "phone": "+913333333332"},
         headers=CSRF_HEADERS,
     ).json()
-    client.post("/auth/logout", headers=CSRF_HEADERS)
+    client.post("/api/v1/auth/logout", headers=CSRF_HEADERS)
 
     _login(client, "audit_b")
-    resp = client.get(f"/people/{person['id']}")
+    resp = client.get(f"/api/v1/people/{person['id']}")
     assert resp.status_code == 404
 
     denied = (

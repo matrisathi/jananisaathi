@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -15,9 +15,10 @@ from app.models.identity import Person
 from app.models.pregnancy import PregnancyEpisode
 from app.models.staff import StaffUser
 from app.schemas.pregnancy import PregnancyEpisodeCreate, PregnancyEpisodeOut
-from app.services import audit_service
+from app.services import audit_service, idempotency_service
 
 router = APIRouter(prefix="/pregnancy-episodes", tags=["pregnancies"])
+_ENDPOINT = "create_pregnancy_episode"
 
 
 def _to_out(episode: PregnancyEpisode, mother_name: str) -> PregnancyEpisodeOut:
@@ -39,7 +40,18 @@ def create_pregnancy_episode(
     db: Session = Depends(get_db),
     staff: StaffUser = Depends(get_current_staff),
     _csrf: None = Depends(require_csrf_header),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> PregnancyEpisodeOut:
+    if idempotency_key:
+        existing_id = idempotency_service.find_existing_response(
+            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key
+        )
+        if existing_id is not None:
+            existing_episode = db.get(PregnancyEpisode, existing_id)
+            if existing_episode is not None:
+                mother = db.get(Person, existing_episode.mother_person_id)
+                return _to_out(existing_episode, mother.full_name if mother else "")
+
     person = db.get(Person, uuid.UUID(body.person_id))
     if person is None:
         audit_service.record_event(
@@ -81,6 +93,11 @@ def create_pregnancy_episode(
     )
     db.add(episode)
     db.commit()
+
+    if idempotency_key:
+        idempotency_service.record_response(
+            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key, entity_id=episode.id
+        )
 
     audit_service.record_event(
         actor_staff_user_id=staff.id,

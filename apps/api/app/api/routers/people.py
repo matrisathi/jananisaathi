@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -14,9 +14,10 @@ from app.models.audit import AuditOutcome
 from app.models.identity import ContactMethod, ContactType, Person
 from app.models.staff import StaffUser
 from app.schemas.person import PersonCreate, PersonOut
-from app.services import audit_service
+from app.services import audit_service, idempotency_service
 
 router = APIRouter(prefix="/people", tags=["people"])
+_ENDPOINT = "create_person"
 
 
 def _to_out(person: Person, phone: str) -> PersonOut:
@@ -36,7 +37,25 @@ def create_person(
     db: Session = Depends(get_db),
     staff: StaffUser = Depends(get_current_staff),
     _csrf: None = Depends(require_csrf_header),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> PersonOut:
+    if idempotency_key:
+        existing_id = idempotency_service.find_existing_response(
+            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key
+        )
+        if existing_id is not None:
+            # A retried submission (e.g. a flaky connection resending the
+            # same registration) returns the original record instead of
+            # creating a duplicate Person.
+            existing_person = db.get(Person, existing_id)
+            if existing_person is not None:
+                contact = (
+                    db.query(ContactMethod)
+                    .filter(ContactMethod.person_id == existing_person.id, ContactMethod.type == ContactType.PHONE)
+                    .first()
+                )
+                return _to_out(existing_person, contact.value if contact else "")
+
     facility_id = uuid.UUID(body.facility_id)
     # Server-side ownership: the caller must hold an active membership at the
     # facility they're registering this person under, and that facility must
@@ -56,6 +75,11 @@ def create_person(
     contact = ContactMethod(person_id=person.id, type=ContactType.PHONE, value=body.phone)
     db.add(contact)
     db.commit()
+
+    if idempotency_key:
+        idempotency_service.record_response(
+            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key, entity_id=person.id
+        )
 
     audit_service.record_event(
         actor_staff_user_id=staff.id,
