@@ -1,0 +1,69 @@
+import { useState } from "react";
+import { api, ApiError } from "../api/client";
+import { useSession } from "../state/session";
+
+export function MotherRegister({ onEpisodeCreated }: { onEpisodeCreated: (episodeId: string) => void }) {
+  const { staff } = useSession();
+  const memberships = staff?.memberships ?? [];
+  const [facilityId, setFacilityId] = useState(memberships[0]?.facility_id ?? "");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const person = await api.createPerson({ full_name: fullName, facility_id: facilityId, phone });
+      const episode = await api.createPregnancyEpisode(person.id);
+      onEpisodeCreated(episode.id);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not register mother");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 480, fontFamily: "sans-serif" }}>
+      <h2>Register a mother &amp; open a pregnancy episode</h2>
+      <p style={{ color: "#555" }}>Synthetic data only — this is a demonstration flow.</p>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="facility">Facility</label>
+          <br />
+          <select id="facility" value={facilityId} onChange={(e) => setFacilityId(e.target.value)} required>
+            <option value="" disabled>
+              Select a facility
+            </option>
+            {memberships.map((m) => (
+              <option key={m.facility_id} value={m.facility_id}>
+                {m.facility_name} ({m.role})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="full_name">Mother's full name</label>
+          <br />
+          <input id="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label htmlFor="phone">Contact phone</label>
+          <br />
+          <input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          <p style={{ fontSize: 12, color: "#777", margin: "4px 0 0" }}>
+            A phone number may be shared by more than one household member — it is never used as
+            anyone's identity.
+          </p>
+        </div>
+        {error && <p style={{ color: "crimson" }}>{error}</p>}
+        <button type="submit" disabled={submitting || !facilityId}>
+          {submitting ? "Creating..." : "Register mother & create episode"}
+        </button>
+      </form>
+    </div>
+  );
+}

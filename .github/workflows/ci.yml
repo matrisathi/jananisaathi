@@ -1,0 +1,64 @@
+name: CI
+
+# Config only, per this repo's current stage: this workflow is not yet
+# executed anywhere — the project has no git remote/host connected yet.
+# It runs once that's set up.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: matrisathi_migrator
+          POSTGRES_PASSWORD: matrisathi_migrator_dev_pw
+          POSTGRES_DB: matrisathi
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U matrisathi_migrator -d matrisathi"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.12.13"
+      - name: Install dependencies (pinned via uv.lock)
+        run: uv sync --frozen
+      - name: Apply migrations (creates the restricted app DB role too)
+        run: uv run alembic upgrade head
+        env:
+          DATABASE_URL_MIGRATOR: postgresql+psycopg://matrisathi_migrator:matrisathi_migrator_dev_pw@localhost:5433/matrisathi
+          DATABASE_URL_APP: postgresql+psycopg://matrisathi_app:matrisathi_app_dev_pw@localhost:5433/matrisathi
+      - name: Ruff
+        run: uv run ruff check .
+      - name: mypy
+        run: uv run mypy app
+      - name: pytest
+        run: uv run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: apps/web/.nvmrc
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build

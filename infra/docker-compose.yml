@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: matrisathi_migrator
+      POSTGRES_PASSWORD: matrisathi_migrator_dev_pw
+      POSTGRES_DB: matrisathi
+    ports:
+      - "5433:5432"
+    volumes:
+      - matrisathi_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matrisathi_migrator -d matrisathi"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  matrisathi_pg_data:
