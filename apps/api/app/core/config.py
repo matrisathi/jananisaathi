@@ -2,7 +2,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # extra="ignore": .env legitimately carries keys this object never reads
+    # directly — e.g. MATRISATHI_APP_DB_PASSWORD, consumed via os.environ by
+    # a migration script, not through this class. Unknown keys here are a
+    # much smaller risk than a hard crash (with the offending value printed
+    # in the traceback) every time someone adds one.
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     env: str = "development"
 

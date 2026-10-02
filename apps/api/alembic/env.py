@@ -20,7 +20,13 @@ if config.config_file_name is not None:
 
 # Migrations always run as the migration-owner role, never the restricted
 # application role — schema changes (DDL) are out of scope for app credentials.
-config.set_main_option("sqlalchemy.url", settings.database_url_migrator)
+#
+# `%` is doubled because this value is stored through a ConfigParser
+# (alembic's Config wraps one), which treats `%` as its own interpolation
+# syntax — a literal `%` in the URL (e.g. from a percent-encoded special
+# character in a password) otherwise raises ValueError with the *entire
+# value, including the password, embedded in the exception message*.
+config.set_main_option("sqlalchemy.url", settings.database_url_migrator.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

@@ -68,9 +68,22 @@ def upgrade() -> None:
     # readable/writable by the restricted app role too, without a
     # per-migration grant statement being remembered each time.
     op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON idempotency_key TO matrisathi_app;")
+    # Target CURRENT_USER rather than a hardcoded role name — the role
+    # actually running migrations is named matrisathi_migrator locally, but
+    # e.g. postgres on Supabase (or any other host). "Future tables created
+    # by whoever is running this migration" is the real intent either way.
     op.execute(
-        "ALTER DEFAULT PRIVILEGES FOR ROLE matrisathi_migrator IN SCHEMA public "
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO matrisathi_app;"
+        """
+        DO $$
+        BEGIN
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
+                'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO matrisathi_app',
+                current_user
+            );
+        END
+        $$;
+        """
     )
 
 

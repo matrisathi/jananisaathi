@@ -16,6 +16,13 @@ os.environ["DATABASE_URL_MIGRATOR"] = (
 os.environ["DATABASE_URL_APP"] = (
     f"postgresql+psycopg://matrisathi_app:matrisathi_app_dev_pw@localhost:5433/{_TEST_DB}"
 )
+# Pinned explicitly so a developer's real .env (e.g. a Supabase
+# MATRISATHI_APP_DB_PASSWORD) can never leak into the test run via
+# alembic/env.py's load_dotenv() and change this *cluster-wide* role's
+# password out from under the dev database sharing the same local Postgres
+# server. python-dotenv's load_dotenv() defaults to override=False, so
+# anything already set here wins over whatever .env contains.
+os.environ["MATRISATHI_APP_DB_PASSWORD"] = "matrisathi_app_dev_pw"
 os.environ["JWT_SECRET"] = "test-only-secret"
 os.environ["COOKIE_SECURE"] = "false"
 os.environ["LOGIN_THROTTLE_MAX_ATTEMPTS"] = "3"
