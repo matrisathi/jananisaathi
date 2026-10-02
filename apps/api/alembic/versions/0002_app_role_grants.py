@@ -13,6 +13,8 @@ even a compromised or buggy application process cannot alter or erase an
 audit row, because the role it connects as is not permitted to.
 """
 
+import os
+
 from alembic import op
 
 revision = "0002_app_role_grants"
@@ -21,7 +23,11 @@ branch_labels = None
 depends_on = None
 
 APP_ROLE = "matrisathi_app"
-APP_ROLE_PASSWORD = "matrisathi_app_dev_pw"  # noqa: S105 — local dev only, see .env.example
+# Overridable so a shared, internet-reachable database (e.g. Supabase) isn't
+# left with the same password that's sitting in this file in git history.
+# Local Docker Postgres isn't reachable from outside the machine, so the
+# default here is fine for that case unchanged.
+APP_ROLE_PASSWORD = os.environ.get("MATRISATHI_APP_DB_PASSWORD", "matrisathi_app_dev_pw")  # noqa: S105
 
 
 def upgrade() -> None:
@@ -31,6 +37,8 @@ def upgrade() -> None:
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{APP_ROLE}') THEN
                 CREATE ROLE {APP_ROLE} LOGIN PASSWORD '{APP_ROLE_PASSWORD}';
+            ELSE
+                ALTER ROLE {APP_ROLE} LOGIN PASSWORD '{APP_ROLE_PASSWORD}';
             END IF;
         END
         $$;

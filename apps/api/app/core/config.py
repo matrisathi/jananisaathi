@@ -36,5 +36,15 @@ class Settings(BaseSettings):
     login_throttle_max_attempts: int = 5
     login_throttle_window_minutes: int = 15
 
+    # Not read anywhere in the app yet (see .env.example) — declared
+    # explicitly so a teammate filling in the optional Supabase/GitHub
+    # section of .env doesn't hit a validation error on startup. Any other
+    # unrecognized key still fails loudly, which is what we want for
+    # catching real typos in the required settings above.
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
+    supabase_service_role_key: str | None = None
+    github_token: str | None = None
+
 
 settings = Settings()

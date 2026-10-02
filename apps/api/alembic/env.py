@@ -1,10 +1,17 @@
 from logging.config import fileConfig
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.models import Base  # noqa: F401  (registers all models on Base.metadata)
+
+# Settings() above already reads .env for the typed config fields; this also
+# puts .env's values into os.environ so a migration script can read an
+# untyped one directly (e.g. MATRISATHI_APP_DB_PASSWORD in 0002_*.py) without
+# every one-off migration setting needing its own Settings field.
+load_dotenv()
 
 config = context.config
 

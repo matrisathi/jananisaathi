@@ -16,7 +16,9 @@ record. See `docs/status.md` for what's built and what's next.
   it automatically if not already installed)
 - Node **26.8.1** (pinned in `apps/web/.nvmrc`)
 
-## 1. Start Postgres
+## 1. Database — pick one
+
+**Option A — local Docker Postgres** (default, solo/offline work):
 
 ```
 cd infra
@@ -24,13 +26,18 @@ docker compose up -d db
 ```
 
 Waits for a healthy container on `localhost:5433` (not 5432, to avoid
-clashing with any other local Postgres).
+clashing with any other local Postgres). Your data is yours alone.
+
+**Option B — shared team Supabase project** (everyone's local backend
+points at the same database): see "Working with a shared team database"
+below. One person sets the project up once; after that, teammates just
+fill in their own `.env`.
 
 ## 2. Backend (one terminal)
 
 ```
 cd apps/api
-cp .env.example .env          # synthetic dev secrets only — never real credentials
+cp .env.example .env          # fill in Option A or Option B — see the file's comments
 uv sync                       # installs pinned deps from uv.lock into apps/api/.venv
 uv run alembic upgrade head   # creates schema AND the restricted app DB role
 uv run python -m app.scripts.seed_dev   # creates one synthetic org/facility/coordinator
@@ -55,9 +62,11 @@ Open `http://localhost:5173`.
 Run from `apps/api` (with `uv sync` already done):
 
 ```
-uv run pytest -q          # 26 tests: auth, access isolation, org-admin,
+uv run pytest -q          # 52 tests: auth, access isolation, org-admin,
                            # person/pregnancy authorization, shared-phone
-                           # privacy, and audit durability/DB-role enforcement
+                           # privacy, person search, contact verification,
+                           # idempotency concurrency, and audit
+                           # durability/DB-role enforcement
 uv run ruff check .
 uv run mypy app
 ```
@@ -101,6 +110,48 @@ tests for now). See `docs/status.md`.
   against the database every time, it isn't decided purely from the JWT.
   Refresh-token reuse (replaying an already-rotated-out token) revokes
   every live session for that user, not just the one token.
+
+## Working with a shared team database (Supabase)
+
+For a team, everyone running their own local Docker Postgres means nobody
+sees the same data — fine for solo work, awkward for reviewing each
+other's changes. A shared Supabase project fixes that: one Postgres
+database, everyone's local API instance (still running on their own
+machine) points at it.
+
+**One-time setup** (whoever creates the project):
+1. Create a Supabase project. Note the project's database password you set
+   at creation — that's the `postgres` superuser password.
+2. In `apps/api/.env`, set `DATABASE_URL_MIGRATOR` to that project's
+   **direct** connection (port 5432, not the 6543 pooler — migrations run
+   DDL that the pooler doesn't reliably support) as the `postgres` user.
+3. Pick a password for the app role and set `DATABASE_URL_APP` to
+   `matrisathi_app` at the same host, with that password.
+4. Run `uv run alembic upgrade head` once. This creates the schema *and*
+   the restricted `matrisathi_app` role automatically
+   (`alembic/versions/0002_app_role_grants.py`) — no manual SQL needed.
+5. Share the resulting connection details with the team through a secure
+   channel (password manager, not Slack/email/chat) — see `.env.example`
+   for exactly which values are needed.
+
+**Everyone else**: fill in the same Option B values in your own
+`apps/api/.env` (never commit it — it's gitignored) and skip straight to
+`uv run uvicorn ...`; the schema's already there.
+
+**Know before you share a database**: everyone's synthetic test data is
+now visible to everyone else. `seed_dev.py` is idempotent (safe to run
+more than once), but anything you create by hand through the UI (test
+mothers, episodes) is visible to the whole team, not just you — keep it
+synthetic, as always, and expect to see teammates' test records too.
+
+## Git and collaboration
+
+No remote is configured yet. The proposed approach once one's set up
+(matches the project's stage-gate tracker, decision D03): task branches,
+pull-request review, and human approval for every commit/push — nobody
+pushes straight to `main`. Setting up the actual remote and push access is
+a separate, explicit step from everything above; ask before assuming it's
+done.
 
 ## Known, low-severity dev-only advisory
 

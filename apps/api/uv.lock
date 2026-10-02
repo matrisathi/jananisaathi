@@ -265,6 +265,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
+    { name = "python-dotenv" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -287,6 +288,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.9.2" },
     { name = "pydantic-settings", specifier = "==2.5.2" },
     { name = "pyjwt", specifier = "==2.9.0" },
+    { name = "python-dotenv", specifier = "==1.2.3" },
     { name = "sqlalchemy", specifier = "==2.0.35" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.31.0" },
 ]
