@@ -46,7 +46,7 @@ def _set_session_cookies(response: Response, access_token: str, refresh_token: s
         access_token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,  # type: ignore[arg-type]
         domain=settings.cookie_domain,
         max_age=settings.access_token_ttl_minutes * 60,
         path="/",
@@ -56,7 +56,7 @@ def _set_session_cookies(response: Response, access_token: str, refresh_token: s
         refresh_token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,  # type: ignore[arg-type]
         domain=settings.cookie_domain,
         max_age=settings.refresh_token_ttl_days * 24 * 3600,
         # Scoped to the refresh/logout endpoints only, limiting exposure of

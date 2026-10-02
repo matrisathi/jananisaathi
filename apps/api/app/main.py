@@ -8,7 +8,7 @@ app = FastAPI(title="MatriSathi API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.cors_allowed_origin],
+    allow_origins=settings.cors_allowed_origins_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type", settings.csrf_header_name, "Idempotency-Key"],

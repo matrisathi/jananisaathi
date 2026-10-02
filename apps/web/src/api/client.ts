@@ -1,4 +1,7 @@
-const API_BASE = "http://localhost:8000/api/v1";
+// Set VITE_API_BASE in Vercel's project env vars for a deployed frontend —
+// this must point at wherever the backend actually runs (it is never
+// Vercel itself; see README "Deploying a staging environment").
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api/v1";
 
 // The auth session rides on httpOnly cookies (set by the API), never in
 // localStorage or a JS-readable cookie — this frontend never touches the

@@ -146,12 +146,53 @@ synthetic, as always, and expect to see teammates' test records too.
 
 ## Git and collaboration
 
-No remote is configured yet. The proposed approach once one's set up
-(matches the project's stage-gate tracker, decision D03): task branches,
-pull-request review, and human approval for every commit/push — nobody
-pushes straight to `main`. Setting up the actual remote and push access is
-a separate, explicit step from everything above; ask before assuming it's
-done.
+Remote: `https://github.com/matrisathi/jananisaathi`, branch `main`. The
+proposed approach (matches the project's stage-gate tracker, decision
+D03): task branches, pull-request review, and human approval for every
+commit/push — nobody pushes straight to `main`. Granting a new
+collaborator access is a GitHub-side step (repo Settings -> Collaborators)
+separate from anything in this file.
+
+## Deploying a staging environment
+
+A bounded, synthetic-data-only staging deployment for people who need to
+see the app without running it locally (e.g. a reviewer who isn't a
+developer) — not a production deployment, and not a substitute for the
+actual hosting/compliance decision (tracker D09) that real patient data
+would require. Two services, each its own manual sign-up — I can't create
+accounts or click through web dashboards, so these steps are for you:
+
+**Backend (e.g. Render — any host that runs a long-lived ASGI process
+works; Vercel itself does not fit this app's architecture):**
+1. New Web Service, pointed at `matrisathi/jananisaathi`, root directory
+   `apps/api`.
+2. Build command: `pip install uv && uv sync --frozen`
+   Start command: `uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   (Running migrations on every boot is harmless — Alembic no-ops once
+   already at head — and keeps this simple for a small staging app.)
+3. Environment variables (set in the host's dashboard, never committed):
+   `DATABASE_URL_MIGRATOR` / `DATABASE_URL_APP` (the same shared Supabase
+   project — no need for a separate database for synthetic-only staging
+   data), a **new, real** `JWT_SECRET` (not the dev placeholder),
+   `COOKIE_SECURE=true`, `COOKIE_SAMESITE=none` (frontend and backend will
+   be on different domains — see `app/core/config.py` for why both of
+   these have to change together), and `CORS_ALLOWED_ORIGINS` (added after
+   step below, once the Vercel URL is known).
+
+**Frontend (Vercel):**
+1. Import `matrisathi/jananisaathi`, root directory `apps/web`. Vite is
+   auto-detected.
+2. Environment variable `VITE_API_BASE` = `<backend URL from above>/api/v1`.
+   Vite bakes this in at **build** time, not read at runtime — set it
+   before the first deploy, or trigger a redeploy after adding it.
+
+**Then**: go back to the backend host and set `CORS_ALLOWED_ORIGINS` to
+the actual `*.vercel.app` URL Vercel assigned, and restart the backend
+(it's read once at process startup).
+
+**Label it as staging everywhere it's visible** — the login screen, any
+shared link — so nobody mistakes it for a production system. It still
+holds only synthetic data; nothing about this setup changes that.
 
 ## Known, low-severity dev-only advisory
 

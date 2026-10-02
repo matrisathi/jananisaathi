@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     # so they are unreachable from page JavaScript (XSS mitigation).
     cookie_secure: bool = False  # must be True behind HTTPS in any real deployment
     cookie_domain: str | None = None
+    # "lax" works for local dev (frontend and backend share localhost, just
+    # different ports — not cross-site as far as cookies are concerned).
+    # A deployment that splits frontend and backend across different
+    # domains (e.g. Vercel + Render) IS cross-site, and a Lax cookie is not
+    # sent on a cross-site fetch() at all — set this to "none" (together
+    # with cookie_secure=true, which browsers require for SameSite=None)
+    # for that case.
+    cookie_samesite: str = "lax"
 
     # CSRF mitigation for the cookie-based session: the frontend must send this
     # header on every mutating request; a cross-site form post cannot set it,
@@ -36,7 +44,14 @@ class Settings(BaseSettings):
     csrf_header_name: str = "X-MatriSathi-Client"
     csrf_header_value: str = "web"
 
-    cors_allowed_origin: str = "http://localhost:5173"
+    # Comma-separated. Local dev is one origin; a staging deployment adds
+    # its actual Vercel URL here (e.g. via Render's env var UI) rather than
+    # this file ever hardcoding a specific deployed URL.
+    cors_allowed_origins: str = "http://localhost:5173"
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
 
     login_throttle_max_attempts: int = 5
     login_throttle_window_minutes: int = 15
