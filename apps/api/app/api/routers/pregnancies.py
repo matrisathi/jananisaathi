@@ -42,15 +42,27 @@ def create_pregnancy_episode(
     _csrf: None = Depends(require_csrf_header),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> PregnancyEpisodeOut:
+    claimed_row_id: uuid.UUID | None = None
+
     if idempotency_key:
-        existing_id = idempotency_service.find_existing_response(
-            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key
+        payload_hash = idempotency_service.hash_payload(body.model_dump(mode="json"))
+        result = idempotency_service.claim(
+            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key, payload_hash=payload_hash
         )
-        if existing_id is not None:
-            existing_episode = db.get(PregnancyEpisode, existing_id)
-            if existing_episode is not None:
-                mother = db.get(Person, existing_episode.mother_person_id)
-                return _to_out(existing_episode, mother.full_name if mother else "")
+        if result.payload_mismatch:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, detail="Idempotency key already used with a different request"
+            )
+        if not result.won:
+            existing_episode = db.get(PregnancyEpisode, result.response_entity_id)
+            if existing_episode is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found")
+            # Re-checked against current membership even on replay — a
+            # cached result never bypasses live access control.
+            require_facility_membership(db, staff, existing_episode.facility_id)
+            mother = db.get(Person, existing_episode.mother_person_id)
+            return _to_out(existing_episode, mother.full_name if mother else "")
+        claimed_row_id = result.idempotency_row_id
 
     person = db.get(Person, uuid.UUID(body.person_id))
     if person is None:
@@ -92,12 +104,12 @@ def create_pregnancy_episode(
         created_by_staff_user_id=staff.id,
     )
     db.add(episode)
-    db.commit()
+    db.flush()
 
-    if idempotency_key:
-        idempotency_service.record_response(
-            db, staff_user_id=staff.id, endpoint=_ENDPOINT, key=idempotency_key, entity_id=episode.id
-        )
+    if claimed_row_id is not None:
+        idempotency_service.attach_result(db, idempotency_row_id=claimed_row_id, entity_id=episode.id)
+
+    db.commit()
 
     audit_service.record_event(
         actor_staff_user_id=staff.id,

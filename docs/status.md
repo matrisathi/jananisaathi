@@ -1,56 +1,67 @@
 # MatriSathi — project status
 
-Last updated: 2026-09-28.
+Last updated: 2026-09-30. Full detail and the SG1 closure table:
+`docs/delivery/evidence/SG1/report.md`.
 
-## Completed
+## Completed (locally verified, not yet CI-verified or reviewer-accepted — see the evidence report's status model)
 
-First implementation slice: staff sign-in, synthetic mother registration,
-pregnancy episode creation, and viewing the persisted record — backend
-(FastAPI + PostgreSQL) and a minimal React/Vite web UI, both locally
-runnable. See `README.md` for setup and `docs/specifications/` for the
-approved specification and its proposed amendments.
+Staff sign-in, mother registration (with intake precision for age/DOB and
+free-text history/allergies), pregnancy episode creation, an
+authorized-existing-person search by phone and/or name, contact
+verification, and viewing the persisted record — backend (FastAPI +
+PostgreSQL) and a React/Vite web UI, both locally runnable. Find/select/
+verify are now real screens (`FindMother.tsx`, `RegisterNewMother.tsx`),
+not just API endpoints — browser-verified end to end, including that
+selecting an existing mother never duplicates her person record and a
+shared phone number never gets merged or auto-selected. 52 automated
+tests, including a real multi-threaded concurrency test proving
+duplicate-creation is prevented at the database level, not by a
+process-local lock.
 
-Covered in this slice: real password-based staff authentication (unique
-username separate from contact phone, login throttling, generic failure
-messages, short-lived access token + rotating refresh token with reuse
-detection, disabled-user checks enforced per-request); explicit
-organization-admin authority (never inferred from a facility role);
-facility-scoped authorization on Person and PregnancyEpisode operations,
-with facility ownership always derived server-side; two-organization and
-shared-phone isolation; append-only audit logging enforced at the database
-role level (the application's DB credential cannot UPDATE or DELETE
-`audit_event`); separate migration-owner vs. restricted application DB
-roles; 26 automated tests; CI configuration (not yet run — no git remote).
+Also covered: real password-based staff auth (throttled, generic failures,
+rotating refresh with reuse detection, live disabled-user checks);
+explicit organization-admin authority (never inferred from a facility
+role, with an admin API to create facilities/staff and grant/revoke
+memberships); facility-scoped authorization everywhere, ownership always
+derived server-side; shared-phone isolation (never merged, never
+leaked cross-facility even via search); append-only audit logging
+enforced at the database role level; CI configuration (not yet run — no
+git remote).
 
 ## Open decisions
 
-- Spec `R09`/`G15`: my drafted replacement (`docs/specifications/R09-G15-proposed-amendments.md`)
-  is treated as operative for planning; the source workbook itself hasn't
-  been updated.
-- WhatsApp/BSP vendor: deliberately not chosen — needs a current cost/
-  onboarding/inbound-media comparison before any account is created.
-- Staff login mechanism: password-based, approved for this slice. OTP-based
-  staff login was considered and deferred (would pull in the messaging
-  module prematurely).
-- Git hosting/remote: not yet configured.
+- SG0 decisions D01–D03 (named team lead/tech lead/developer, confirmed
+  hours, pilot site/language, repo/merge policy): unrecorded, tracker
+  Status still "Open." Not mine to approve.
+- D04 (auth/session/runtime versions): concrete proposal written into the
+  tracker, already built and tested, Status left "Open" pending tech-lead
+  approval.
+- Contact **value** editing (changing a phone number): deliberately not
+  built — needs a human decision on the identity-transfer risk first.
+- WhatsApp/BSP vendor: still not chosen.
+- Git hosting/remote: still not configured; steps prepared in the evidence
+  report §10 for when it's authorized.
 
 ## Known limitations
 
 - No Child, CaregiverLink, CareTask, ApprovedContent or MessagingEvent
-  tables yet — modeled in the design doc, deliberately not migrated
-  (provisional; see git history for the design discussion).
-- No admin UI/API for creating organizations, facilities or staff
-  memberships — done via a seed script and directly in test fixtures for
-  now.
-- No WhatsApp integration, no audio content, no offline support.
-- This is a local demonstration only. It does not satisfy any deployed-
-  pilot gate — no staging/production environment, no real device testing,
-  no doctor/clinical review, no legal/hosting review.
+  tables (correctly out of SG1 scope).
+- No entity `version`/optimistic-concurrency columns — nothing to protect
+  yet since no update endpoint exists; needs to land with SG2's first one.
+- No role-based capability differences beyond facility membership — all
+  four staff roles currently have identical permissions on this slice's
+  two actions, since F004's example restrictions (clinical plan approval,
+  report review) don't exist as actions yet.
+- Admin capabilities (creating facilities/staff, granting memberships) are
+  still API-only — not wired into the browser UI. Search/verify now are.
+- Contact value editing (changing a phone number) and name search's
+  matching (plain `ILIKE`, not fuzzy/phonetic) are known simplifications.
+- This is a local demonstration only. No staging/production environment,
+  no CI run, no doctor/clinical review, no legal/hosting review.
 
 ## Next proposed task
 
-Build the caregiver-delegation flow (`CaregiverLink`: grant, staff-verified
-guardian authority for a child, and revocation) on top of this slice's
-access-control foundation, since it's the next piece the spec's shared-
-phone/caregiver requirements (R02) depend on and reuses the same
-facility-membership and audit patterns already in place.
+Build the caregiver-delegation flow (`CaregiverLink`), reusing the
+facility-membership and audit patterns already in place — but only after
+SG1's open human reviews (M003, M008) and SG0 decisions are actually
+recorded, per this stage's own instructions not to start SG2 early.

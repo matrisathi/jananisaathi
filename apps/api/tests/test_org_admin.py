@@ -13,6 +13,7 @@ from fastapi import HTTPException
 import pytest
 
 from app.core.deps import require_org_admin
+from tests.conftest import CSRF_HEADERS
 from tests.factories import make_facility, make_org, make_org_admin, make_staff, make_membership
 
 
@@ -61,3 +62,26 @@ def test_revoked_org_admin_grant_loses_authority(db_session):
     with pytest.raises(HTTPException) as exc_info:
         require_org_admin(db_session, admin, org.id)
     assert exc_info.value.status_code == 404
+
+
+def test_org_admin_authority_alone_grants_no_clinical_record_access(client, db_session):
+    """T005: "No automatic clinical access from admin title." Being an
+    OrganizationAdmin is a distinct grant from a facility StaffMembership
+    (see app/models/organization.py) — an org admin with no membership of
+    their own still cannot register a person or read records, because that
+    requires the ordinary facility-membership check, which org-admin status
+    does not satisfy."""
+    org = make_org(db_session)
+    facility = make_facility(db_session, org)
+    admin = make_staff(db_session, "admin_no_membership")
+    make_org_admin(db_session, admin, org)  # org admin, but NO StaffMembership anywhere
+
+    resp = client.post("/api/v1/auth/login", json={"username": "admin_no_membership", "password": "synthetic-password-123"})
+    assert resp.status_code == 200
+
+    resp = client.post(
+        "/api/v1/people",
+        json={"full_name": "Should be denied", "facility_id": str(facility.id), "phone": "+917777700001"},
+        headers=CSRF_HEADERS,
+    )
+    assert resp.status_code == 404

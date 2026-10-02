@@ -51,7 +51,7 @@ function AppShell() {
               Signed in as <strong>{staff.full_name}</strong> ({staff.username}){" "}
               <button onClick={handleLogout}>Log out</button>
               {" | "}
-              <a href="#">New registration</a>
+              <a href="#">Find / register mother</a>
             </header>
             {hash.startsWith("#/episodes/") ? (
               <PregnancyView episodeId={hash.replace("#/episodes/", "")} />

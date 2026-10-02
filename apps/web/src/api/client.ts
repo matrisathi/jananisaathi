@@ -54,13 +54,22 @@ export interface Staff {
   memberships: Membership[];
 }
 
+export type AgePrecision = "EXACT_DOB" | "YEAR_ONLY" | "APPROXIMATE_AGE" | "UNKNOWN";
+
 export interface Person {
   id: string;
   full_name: string;
+  age_precision: AgePrecision;
   date_of_birth: string | null;
+  birth_year: number | null;
+  reported_age_years: number | null;
   preferred_language: string | null;
+  reported_medical_history: string | null;
+  known_allergies_medicines: string | null;
   registering_facility_id: string;
   phone: string;
+  contact_verified_at: string | null;
+  contact_verified_by_name: string | null;
 }
 
 export interface PregnancyEpisode {
@@ -74,19 +83,35 @@ export interface PregnancyEpisode {
   created_at: string;
 }
 
+export interface PersonCreateInput {
+  full_name: string;
+  facility_id: string;
+  phone: string;
+  age_precision?: AgePrecision;
+  date_of_birth?: string | null;
+  birth_year?: number | null;
+  reported_age_years?: number | null;
+  preferred_language?: string | null;
+  reported_medical_history?: string | null;
+  known_allergies_medicines?: string | null;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<Staff>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
   me: () => request<Staff>("/auth/me"),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
-  createPerson: (input: {
-    full_name: string;
-    facility_id: string;
-    phone: string;
-    date_of_birth?: string | null;
-    preferred_language?: string | null;
-  }) => request<Person>("/people", { method: "POST", body: JSON.stringify(input) }),
+  createPerson: (input: PersonCreateInput) =>
+    request<Person>("/people", { method: "POST", body: JSON.stringify(input) }),
   getPerson: (id: string) => request<Person>(`/people/${id}`),
+  searchPeople: (params: { phone?: string; full_name?: string }) => {
+    const q = new URLSearchParams();
+    if (params.phone) q.set("phone", params.phone);
+    if (params.full_name) q.set("full_name", params.full_name);
+    return request<Person[]>(`/people?${q.toString()}`);
+  },
+  verifyContact: (personId: string) =>
+    request<Person>(`/people/${personId}/contact/verify`, { method: "POST" }),
   createPregnancyEpisode: (personId: string) =>
     request<PregnancyEpisode>("/pregnancy-episodes", {
       method: "POST",

@@ -9,11 +9,18 @@ from app.models.base import Base, TimestampMixin, uuid_pk
 
 class IdempotencyKey(Base, TimestampMixin):
     """Backs client-supplied `Idempotency-Key` headers on retryable creates
-    (T002: "operation IDs for retryable creates"). A retried request with
-    the same key, from the same staff user, on the same endpoint, returns
-    the original result instead of creating a second record — a retried
-    mother-registration submission over a flaky connection must not create
-    a duplicate Person/PregnancyEpisode.
+    (T002: "operation IDs for retryable creates").
+
+    Concurrency-safe by construction, not by convention: a row is claimed
+    with `INSERT ... ON CONFLICT (staff_user_id, endpoint, key) DO NOTHING`
+    (see app/services/idempotency_service.py), which is a single
+    database-enforced atomic operation — two concurrent requests racing on
+    the same key cannot both "win" the unique constraint, and Postgres
+    blocks the loser until the winner's transaction resolves rather than
+    letting both proceed. `response_entity_id` starts NULL and is filled in
+    in the SAME transaction that creates the business entity, so a claim
+    and its result either commit together or (on any failure/crash before
+    commit) neither is ever visible to another request at all.
     """
 
     __tablename__ = "idempotency_key"
@@ -25,4 +32,9 @@ class IdempotencyKey(Base, TimestampMixin):
     )
     endpoint: Mapped[str] = mapped_column(String(100), nullable=False)
     key: Mapped[str] = mapped_column(String(200), nullable=False)
-    response_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    # Hash of the normalized request body. A retry must resend the same
+    # payload; reusing a key with a different payload is a client error,
+    # not a legitimate retry, and is rejected rather than silently
+    # returning whichever result happened to be created first.
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
