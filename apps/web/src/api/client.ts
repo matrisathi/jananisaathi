@@ -711,3 +711,22 @@ export type OverviewSummary = Record<AttentionBucket, { count: number; records: 
 export const overviewApi = {
   summary: () => request<OverviewSummary>("/overview/summary"),
 };
+
+export interface Trends {
+  week_starts: string[];
+  registrations: number[];
+  visits_attended: number[];
+  visits_missed: number[];
+  referrals_by_status: Record<string, number>;
+  tiles: {
+    active_pregnancies: number;
+    visits_this_month: number;
+    reports_awaiting_review: number;
+    follow_ups_closed: number;
+    follow_ups_closed_on_time: number;
+  };
+}
+
+export const trendsApi = {
+  get: () => request<Trends>("/overview/trends"),
+};

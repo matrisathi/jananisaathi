@@ -24,7 +24,7 @@ import { SessionContext, useSession, type SessionState } from "./state/session";
 const Landing = lazy(() => import("./pages/Landing").then((m) => ({ default: m.Landing })));
 const Messages = lazy(() => import("./pages/preview/Messages").then((m) => ({ default: m.Messages })));
 const Children = lazy(() => import("./pages/preview/Children").then((m) => ({ default: m.Children })));
-const Insights = lazy(() => import("./pages/preview/Insights").then((m) => ({ default: m.Insights })));
+const Insights = lazy(() => import("./pages/Insights").then((m) => ({ default: m.Insights })));
 
 function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageState kind="loading" />}>{children}</Suspense>;

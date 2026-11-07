@@ -37,12 +37,14 @@ function useWidth<T extends HTMLElement>(fallback = 0): [React.RefObject<T>, num
   return [ref, width];
 }
 
-function niceMax(v: number): number {
-  if (v <= 0) return 1;
+/** Rounded axis top for counts. Always even, so the middle tick is a whole number. */
+export function niceMax(v: number): number {
+  if (v <= 0) return 2;
   const pow = 10 ** Math.floor(Math.log10(v));
   const n = v / pow;
   const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-  return step * pow;
+  const max = step * pow;
+  return max % 2 ? max + 1 : max;
 }
 
 function SrTable({ caption, headers, rows }: { caption: string; headers: string[]; rows: (string | number)[][] }) {
@@ -164,6 +166,9 @@ export function StackedColumns({ rows, series, caption }: { rows: StackRow[]; se
   const max = niceMax(Math.max(...totals));
   const band = (W - padL - padR) / rows.length;
   const bw = Math.min(34, band * 0.56);
+  // Thin out period labels when columns are narrow (phones), keeping the latest.
+  const labelEvery = Math.max(1, Math.ceil(52 / band));
+  const lastRow = rows.length - 1;
   const y = (v: number) => padT + (1 - v / max) * (H - padT - padB);
   return (
     <div ref={ref} className="relative w-full min-w-0">
@@ -194,9 +199,11 @@ export function StackedColumns({ rows, series, caption }: { rows: StackRow[]; se
               <text x={cx} y={y(totals[i]) - 6} textAnchor="middle" className="fill-[var(--color-muted)] text-[11px] font-semibold tabular">
                 {totals[i]}
               </text>
-              <text x={cx} y={H - 6} textAnchor="middle" className="fill-[var(--color-faint)] text-[11px]">
-                {r.label}
-              </text>
+              {((lastRow - i) % labelEvery === 0) && (
+                <text x={cx} y={H - 6} textAnchor="middle" className="fill-[var(--color-faint)] text-[11px]">
+                  {r.label}
+                </text>
+              )}
             </g>
           );
         })}

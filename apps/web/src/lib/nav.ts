@@ -28,7 +28,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { labelKey: "nav.contacts", to: "/contacts", icon: BookUser, group: "network", roles: ALL_ROLES },
   { labelKey: "nav.messages", to: "/messages", icon: MessageCircle, group: "preview", roles: ALL_ROLES, preview: true },
   { labelKey: "nav.children", to: "/children", icon: Baby, group: "preview", roles: ALL_ROLES, preview: true },
-  { labelKey: "nav.insights", to: "/insights", icon: BarChart3, group: "preview", roles: ALL_ROLES, preview: true },
+  { labelKey: "nav.insights", to: "/insights", icon: BarChart3, group: "work", roles: ALL_ROLES },
 ];
 
 export function rolesOf(memberships: readonly Membership[]): Set<string> {
