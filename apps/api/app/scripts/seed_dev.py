@@ -1,5 +1,5 @@
-"""Seeds one synthetic organization, facility and coordinator for manual
-demonstration. Safe to run repeatedly (skips if already seeded).
+"""Seeds one synthetic organization and facility with one user per staff
+role (coordinator, doctor, nurse, ASHA) for manual demonstration. Safe to run repeatedly (skips if already seeded).
 
 Usage: uv run python -m app.scripts.seed_dev
 
@@ -21,6 +21,8 @@ from app.models.staff import StaffMembership, StaffRole, StaffUser
 
 DEV_USERNAME = "coordinator1"
 DEV_DOCTOR_USERNAME = "doctor1"
+DEV_NURSE_USERNAME = "nurse1"
+DEV_ASHA_USERNAME = "asha1"
 DEV_PASSWORD = "synthetic-dev-password-123"  # noqa: S105 — synthetic, local dev only
 MIN_SEED_PASSWORD_LENGTH = 12
 
@@ -86,11 +88,16 @@ def main() -> None:
         # A synthetic clinician, so plan publishing and dating confirmation
         # (DOCTOR-only) can be built and demonstrated.
         created_doctor = _ensure_staff(db, DEV_DOCTOR_USERNAME, "Synthetic Doctor", StaffRole.DOCTOR, facility_id, password)
+        # One of each remaining role, so role-specific screens can be checked.
+        created_nurse = _ensure_staff(db, DEV_NURSE_USERNAME, "Synthetic Nurse", StaffRole.NURSE, facility_id, password)
+        created_asha = _ensure_staff(db, DEV_ASHA_USERNAME, "Synthetic ASHA", StaffRole.ASHA, facility_id, password)
         db.commit()
 
         print("Synthetic data ready:")
         print(f"  coordinator  = {login_line(DEV_USERNAME)}")
         print(f"  doctor       = {login_line(DEV_DOCTOR_USERNAME)}" + (" (created)" if created_doctor else ""))
+        print(f"  nurse        = {login_line(DEV_NURSE_USERNAME)}" + (" (created)" if created_nurse else ""))
+        print(f"  asha         = {login_line(DEV_ASHA_USERNAME)}" + (" (created)" if created_asha else ""))
     finally:
         db.close()
 
