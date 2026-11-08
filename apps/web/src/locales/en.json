@@ -39,7 +39,8 @@
     },
     "mothersShort": "Mothers",
     "quickFindLabel": "Find a mother by phone number or name",
-    "enterKey": "Enter"
+    "enterKey": "Enter",
+    "team": "Team"
   },
   "common": {
     "loading": "Loading…",
@@ -792,6 +793,64 @@
       "no_care_plan": "No care plan published",
       "contact_not_confirmed": "Contact number not confirmed",
       "referrals_in_progress": "Referrals in progress"
+    }
+  },
+  "setPassword": {
+    "title": "Choose your password",
+    "body": "Welcome, {{name}}. You signed in with a temporary password. Choose your own to continue.",
+    "current": "Temporary password",
+    "new": "New password",
+    "confirm": "Type the new password again",
+    "rule": "At least 12 characters. Not your username.",
+    "submit": "Save and continue",
+    "saving": "Saving…",
+    "done": "Password saved",
+    "problem": {
+      "tooShort": "Use at least 12 characters.",
+      "isUsername": "Do not use your username as your password.",
+      "sameAsCurrent": "Choose a password different from the temporary one.",
+      "mismatch": "The two new passwords do not match."
+    }
+  },
+  "team": {
+    "title": "Team",
+    "description": "Create staff accounts, reset passwords and manage who works at each facility.",
+    "listTitle_one": "{{count}} person",
+    "listTitle_other": "{{count}} people",
+    "listBody": "Everyone with a role at one of your facilities.",
+    "empty": "No staff yet.",
+    "admin": "Admin",
+    "you": "(you)",
+    "status": {
+      "waiting": "First sign-in pending",
+      "active": "Active"
+    },
+    "reset": "Reset password",
+    "resetConfirm": "Give {{name}} a new temporary password? They will be signed out everywhere.",
+    "removeRole": "Remove {{role}} at {{facility}} from {{name}}",
+    "removeConfirm": "Remove {{name}}'s access to {{facility}}? They will no longer see its records.",
+    "removed": "Access removed",
+    "add": {
+      "open": "Add staff member",
+      "title": "Add a staff member",
+      "body": "They get a temporary password and choose their own at first sign-in.",
+      "fullName": "Full name",
+      "username": "Username",
+      "usernameHint": "Lowercase letters, numbers, dots or dashes. Used to sign in.",
+      "facility": "Facility",
+      "role": "Role",
+      "submit": "Create account",
+      "creating": "Creating…"
+    },
+    "creds": {
+      "title": "Account created for {{name}}",
+      "resetTitle": "New temporary password for {{name}}",
+      "body": "Give these to the person directly. This password is shown only once; they will choose their own when they sign in.",
+      "username": "Username",
+      "password": "Temporary password",
+      "copy": "Copy both",
+      "copied": "Copied",
+      "done": "Done"
     }
   }
 }

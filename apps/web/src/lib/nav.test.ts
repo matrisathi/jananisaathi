@@ -14,8 +14,8 @@ describe("role-aware navigation", () => {
 
   it("shows every current page to every role", () => {
     for (const role of ["ASHA", "NURSE", "COORDINATOR", "DOCTOR"]) {
-      expect(navItemsFor(new Set([role]))).toEqual([...NAV_ITEMS]);
       expect(navItemsFor(new Set([role])).map((i) => i.to)).toEqual(["/", "/today", "/mothers", "/contacts", "/messages", "/children", "/insights"]);
+      expect(navItemsFor(new Set([role]), NAV_ITEMS, true)).toEqual([...NAV_ITEMS]);
     }
   });
 
@@ -38,5 +38,12 @@ describe("preview screens", () => {
     for (const item of NAV_ITEMS) {
       expect(Boolean(item.preview)).toBe(item.group === "preview");
     }
+  });
+});
+
+describe("admin-only links", () => {
+  it("shows Team only to organization admins", () => {
+    expect(navItemsFor(new Set(["COORDINATOR"])).some((i) => i.to === "/team")).toBe(false);
+    expect(navItemsFor(new Set(["COORDINATOR"]), NAV_ITEMS, true).some((i) => i.to === "/team")).toBe(true);
   });
 });

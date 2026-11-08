@@ -16,7 +16,7 @@ from app.core.db import SessionLocal
 from app.core.security import hash_password
 from app.core.startup_checks import is_development
 from app.models.facility import Facility
-from app.models.organization import Organization
+from app.models.organization import Organization, OrganizationAdmin
 from app.models.staff import StaffMembership, StaffRole, StaffUser
 
 DEV_USERNAME = "coordinator1"
@@ -91,10 +91,20 @@ def main() -> None:
         # One of each remaining role, so role-specific screens can be checked.
         created_nurse = _ensure_staff(db, DEV_NURSE_USERNAME, "Synthetic Nurse", StaffRole.NURSE, facility_id, password)
         created_asha = _ensure_staff(db, DEV_ASHA_USERNAME, "Synthetic ASHA", StaffRole.ASHA, facility_id, password)
+        # The coordinator also administers the organization, so the Team
+        # screen (create accounts, reset passwords) can be demonstrated.
+        coordinator_id = db.query(StaffUser.id).filter(StaffUser.username == DEV_USERNAME).scalar()
+        org_id = db.query(Facility.organization_id).filter(Facility.id == facility_id).scalar()
+        made_admin = False
+        if not db.query(OrganizationAdmin).filter(
+            OrganizationAdmin.staff_user_id == coordinator_id, OrganizationAdmin.organization_id == org_id
+        ).first():
+            db.add(OrganizationAdmin(organization_id=org_id, staff_user_id=coordinator_id))
+            made_admin = True
         db.commit()
 
         print("Synthetic data ready:")
-        print(f"  coordinator  = {login_line(DEV_USERNAME)}")
+        print(f"  coordinator  = {login_line(DEV_USERNAME)} (organization admin" + (", granted now)" if made_admin else ")"))
         print(f"  doctor       = {login_line(DEV_DOCTOR_USERNAME)}" + (" (created)" if created_doctor else ""))
         print(f"  nurse        = {login_line(DEV_NURSE_USERNAME)}" + (" (created)" if created_nurse else ""))
         print(f"  asha         = {login_line(DEV_ASHA_USERNAME)}" + (" (created)" if created_asha else ""))

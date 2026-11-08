@@ -17,6 +17,7 @@ import { UrgentHelp } from "./pages/UrgentHelp";
 import { Login } from "./pages/Login";
 import { MotherRegister } from "./pages/MotherRegister";
 import { PregnancyView } from "./pages/PregnancyView";
+import { SetPassword } from "./pages/SetPassword";
 import { Today } from "./pages/Today";
 import { SessionContext, useSession, type SessionState } from "./state/session";
 
@@ -24,6 +25,7 @@ import { SessionContext, useSession, type SessionState } from "./state/session";
 const Landing = lazy(() => import("./pages/Landing").then((m) => ({ default: m.Landing })));
 const Messages = lazy(() => import("./pages/preview/Messages").then((m) => ({ default: m.Messages })));
 const Children = lazy(() => import("./pages/preview/Children").then((m) => ({ default: m.Children })));
+const Team = lazy(() => import("./pages/Team").then((m) => ({ default: m.Team })));
 const Insights = lazy(() => import("./pages/Insights").then((m) => ({ default: m.Insights })));
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -108,6 +110,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
   // address goes to sign-in and comes back afterwards.
   if (!staff && location.pathname === "/") return <Navigate to="/welcome" replace />;
   if (!staff) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  // A temporary password set by an admin must be replaced before anything
+  // else (the server refuses other requests until then).
+  if (staff.must_change_password && location.pathname !== "/set-password") return <Navigate to="/set-password" replace />;
+  if (!staff.must_change_password && location.pathname === "/set-password") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -171,8 +177,17 @@ export function App() {
                       <Route path="messages" element={<Lazy><Messages /></Lazy>} />
                       <Route path="children" element={<Lazy><Children /></Lazy>} />
                       <Route path="insights" element={<Lazy><Insights /></Lazy>} />
+                    <Route path="team" element={<Lazy><Team /></Lazy>} />
                     </Route>
-                    {/* Printable page: signed in, but without the app header. */}
+                    <Route
+                    path="/set-password"
+                    element={
+                      <RequireAuth>
+                        <SetPassword />
+                      </RequireAuth>
+                    }
+                  />
+                  {/* Printable page: signed in, but without the app header. */}
                     <Route
                       path="/episodes/:episodeId/birth-plan/print"
                       element={

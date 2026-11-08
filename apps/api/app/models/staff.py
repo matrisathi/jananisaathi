@@ -27,6 +27,9 @@ class StaffUser(Base, TimestampMixin):
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Set when an organization admin creates the account or resets its
+    # password: the person must choose their own before doing anything else.
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
 
 
 class StaffMembership(Base, TimestampMixin):

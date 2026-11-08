@@ -172,7 +172,7 @@ export function AppShell() {
   const { staff } = useSession();
   const location = useLocation();
   const [drawer, setDrawer] = useState(false);
-  const items = navItemsFor(rolesOf(staff?.memberships ?? []));
+  const items = navItemsFor(rolesOf(staff?.memberships ?? []), undefined, (staff?.admin_organization_ids.length ?? 0) > 0);
   const bottom = items.filter((i) => ["/", "/today", "/mothers"].includes(i.to));
 
   // Close the drawer on navigation and on Escape.
