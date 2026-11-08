@@ -5,17 +5,20 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.deps import get_current_staff, require_csrf_header
+from app.core.deps import get_signed_in_staff, require_csrf_header
 from app.core.security import (
     create_access_token,
+    hash_password,
     hash_refresh_token,
+    new_password_problem,
     new_refresh_token,
     verify_password,
 )
 from app.models.audit import AuditOutcome
 from app.models.facility import Facility
+from app.models.organization import OrganizationAdmin
 from app.models.staff import LoginAttempt, RefreshToken, StaffMembership, StaffUser
-from app.schemas.auth import LoginRequest, MembershipOut, StaffOut
+from app.schemas.auth import ChangePasswordRequest, LoginRequest, MembershipOut, StaffOut
 from app.services import audit_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -37,7 +40,20 @@ def _staff_out(db: Session, staff: StaffUser) -> StaffOut:
     memberships = [
         MembershipOut(facility_id=str(f.id), facility_name=f.name, role=m.role.value) for m, f in rows
     ]
-    return StaffOut(id=str(staff.id), username=staff.username, full_name=staff.full_name, memberships=memberships)
+    admin_orgs = [
+        str(a.organization_id)
+        for a in db.query(OrganizationAdmin).filter(
+            OrganizationAdmin.staff_user_id == staff.id, OrganizationAdmin.revoked_at.is_(None)
+        )
+    ]
+    return StaffOut(
+        id=str(staff.id),
+        username=staff.username,
+        full_name=staff.full_name,
+        memberships=memberships,
+        must_change_password=staff.must_change_password,
+        admin_organization_ids=admin_orgs,
+    )
 
 
 def _set_session_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -215,7 +231,7 @@ def logout(
     db: Session = Depends(get_db),
     refresh_token: str | None = Cookie(default=None),
     _csrf: None = Depends(require_csrf_header),
-    staff: StaffUser = Depends(get_current_staff),
+    staff: StaffUser = Depends(get_signed_in_staff),
 ) -> None:
     if refresh_token is not None:
         token_hash = hash_refresh_token(refresh_token)
@@ -235,5 +251,48 @@ def logout(
 
 
 @router.get("/me", response_model=StaffOut)
-def me(db: Session = Depends(get_db), staff: StaffUser = Depends(get_current_staff)) -> StaffOut:
+def me(db: Session = Depends(get_db), staff: StaffUser = Depends(get_signed_in_staff)) -> StaffOut:
+    return _staff_out(db, staff)
+
+
+@router.post("/change-password", response_model=StaffOut)
+def change_password(
+    body: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    refresh_token: str | None = Cookie(default=None),
+    _csrf: None = Depends(require_csrf_header),
+    staff: StaffUser = Depends(get_signed_in_staff),
+) -> StaffOut:
+    """The signed-in person replaces their password (required after an admin
+    set a temporary one). Other sessions of this account are ended."""
+    if not verify_password(body.current_password, staff.password_hash):
+        audit_service.record_event(
+            actor_staff_user_id=staff.id,
+            action="change_password",
+            entity_type="StaffUser",
+            entity_id=str(staff.id),
+            outcome=AuditOutcome.DENIED,
+            metadata={"reason": "wrong_current_password"},
+        )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="The current password is not correct.")
+    problem = new_password_problem(body.new_password, username=staff.username, current_password=body.current_password)
+    if problem:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=problem)
+
+    staff.password_hash = hash_password(body.new_password)
+    staff.must_change_password = False
+    now = datetime.now(timezone.utc)
+    others = db.query(RefreshToken).filter(RefreshToken.staff_user_id == staff.id, RefreshToken.revoked_at.is_(None))
+    if refresh_token is not None:
+        others = others.filter(RefreshToken.token_hash != hash_refresh_token(refresh_token))
+    others.update({RefreshToken.revoked_at: now}, synchronize_session=False)
+    db.commit()
+    audit_service.record_event(
+        actor_staff_user_id=staff.id,
+        action="change_password",
+        entity_type="StaffUser",
+        entity_id=str(staff.id),
+        outcome=AuditOutcome.SUCCESS,
+        metadata={},
+    )
     return _staff_out(db, staff)

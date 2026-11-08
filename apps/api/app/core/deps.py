@@ -12,7 +12,7 @@ from app.models.organization import OrganizationAdmin
 from app.models.staff import StaffMembership, StaffUser
 
 
-def get_current_staff(
+def get_signed_in_staff(
     db: Session = Depends(get_db),
     access_token: str | None = Cookie(default=None),
 ) -> StaffUser:
@@ -31,6 +31,18 @@ def get_current_staff(
     staff = db.get(StaffUser, uuid.UUID(staff_user_id)) if staff_user_id else None
     if staff is None or not staff.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return staff
+
+
+PASSWORD_CHANGE_REQUIRED = "Password change required"
+
+
+def get_current_staff(staff: StaffUser = Depends(get_signed_in_staff)) -> StaffUser:
+    """The signed-in caller, refused (403) while they still hold a temporary
+    password set by an admin. Only /auth/me, /auth/change-password and
+    /auth/logout accept such a caller (they use get_signed_in_staff)."""
+    if staff.must_change_password:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=PASSWORD_CHANGE_REQUIRED)
     return staff
 
 

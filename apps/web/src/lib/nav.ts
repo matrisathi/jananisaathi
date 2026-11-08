@@ -1,4 +1,4 @@
-import { BarChart3, Baby, BookUser, LayoutDashboard, ListChecks, MessageCircle, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, Baby, BookUser, LayoutDashboard, ListChecks, MessageCircle, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import type { Membership } from "../api/client";
 
 export type StaffRole = "ASHA" | "NURSE" | "COORDINATOR" | "DOCTOR";
@@ -17,6 +17,8 @@ export interface NavItem {
   roles: readonly StaffRole[];
   /** A preview screen built on sample data; labelled as such everywhere. */
   preview?: boolean;
+  /** Only for organization admins (the server checks the admin grant too). */
+  adminOnly?: boolean;
 }
 
 // Every role currently sees the same pages: role capabilities start in SG2
@@ -26,6 +28,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { labelKey: "nav.today", to: "/today", icon: ListChecks, group: "work", roles: ALL_ROLES },
   { labelKey: "nav.mothersShort", to: "/mothers", icon: Users, group: "work", roles: ALL_ROLES },
   { labelKey: "nav.contacts", to: "/contacts", icon: BookUser, group: "network", roles: ALL_ROLES },
+  { labelKey: "nav.team", to: "/team", icon: ShieldCheck, group: "network", roles: ALL_ROLES, adminOnly: true },
   { labelKey: "nav.messages", to: "/messages", icon: MessageCircle, group: "preview", roles: ALL_ROLES, preview: true },
   { labelKey: "nav.children", to: "/children", icon: Baby, group: "preview", roles: ALL_ROLES, preview: true },
   { labelKey: "nav.insights", to: "/insights", icon: BarChart3, group: "work", roles: ALL_ROLES },
@@ -35,7 +38,8 @@ export function rolesOf(memberships: readonly Membership[]): Set<string> {
   return new Set(memberships.map((m) => m.role));
 }
 
-/** Links shown to a user holding any of `roles` (at any of their facilities). */
-export function navItemsFor(roles: Set<string>, items: readonly NavItem[] = NAV_ITEMS): NavItem[] {
-  return items.filter((item) => item.roles.some((role) => roles.has(role)));
+/** Links shown to a user holding any of `roles` (at any of their facilities).
+ * Admin-only links appear only when `isAdmin` (an organization admin). */
+export function navItemsFor(roles: Set<string>, items: readonly NavItem[] = NAV_ITEMS, isAdmin = false): NavItem[] {
+  return items.filter((item) => (!item.adminOnly || isAdmin) && item.roles.some((role) => roles.has(role)));
 }

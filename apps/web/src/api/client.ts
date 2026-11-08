@@ -162,6 +162,10 @@ export interface Staff {
   username: string;
   full_name: string;
   memberships: Membership[];
+  /** Set by an admin-issued temporary password: nothing else works until changed. */
+  must_change_password: boolean;
+  /** Organizations this person administers (shows the Team screen). */
+  admin_organization_ids: string[];
 }
 
 export type AgePrecision = "EXACT_DOB" | "YEAR_ONLY" | "APPROXIMATE_AGE" | "UNKNOWN";
@@ -670,6 +674,8 @@ export const api = {
     request<Staff>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
   me: () => request<Staff>("/auth/me"),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+  changePassword: (current_password: string, new_password: string) =>
+    request<Staff>("/auth/change-password", { method: "POST", body: JSON.stringify({ current_password, new_password }) }),
   createPerson: (input: PersonCreateInput, idempotencyKey: string) =>
     request<Person>("/people", { method: "POST", body: JSON.stringify(input), idempotencyKey }),
   getPerson: (id: string) => request<Person>(`/people/${id}`),
@@ -729,4 +735,42 @@ export interface Trends {
 
 export const trendsApi = {
   get: () => request<Trends>("/overview/trends"),
+};
+
+// --- Team (organization admins) ---------------------------------------------
+
+export type StaffRoleName = "ASHA" | "NURSE" | "COORDINATOR" | "DOCTOR";
+
+export interface TeamMember {
+  id: string;
+  username: string;
+  full_name: string;
+  active: boolean;
+  must_change_password: boolean;
+  is_org_admin: boolean;
+  memberships: { id: string; facility_id: string; facility_name: string; role: StaffRoleName }[];
+}
+
+export interface Team {
+  organization_id: string;
+  facilities: { id: string; organization_id: string; name: string; active: boolean }[];
+  staff: TeamMember[];
+}
+
+export interface StaffCreated {
+  id: string;
+  username: string;
+  full_name: string;
+  temporary_password: string | null;
+  membership_id: string | null;
+}
+
+export const teamApi = {
+  get: (orgId: string) => request<Team>(`/organizations/${orgId}/team`),
+  create: (input: { organization_id: string; username: string; full_name: string; facility_id: string; role: StaffRoleName }) =>
+    request<StaffCreated>("/staff", { method: "POST", body: JSON.stringify(input) }),
+  resetPassword: (staffId: string) =>
+    request<{ temporary_password: string }>(`/staff/${staffId}/reset-password`, { method: "POST" }),
+  removeRole: (facilityId: string, membershipId: string) =>
+    request<void>(`/facilities/${facilityId}/memberships/${membershipId}`, { method: "DELETE" }),
 };
